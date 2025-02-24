@@ -114,6 +114,14 @@ class CalibrationLogResponse(BaseModel):
     measuredVoltageT3: float
     measuredVoltageT4: float
 
+class CalibrationProjectResponse(BaseModel):
+    id: str
+    name: str
+    created_at: datetime
+    user_id: int
+    username: str
+    
+
 # === Routes ===
 @app.on_event("startup")
 def on_startup():
@@ -148,12 +156,26 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
         # response.set_cookie(key="access_token", value=access_token, httponly=True)
         # return {"message": "Logged in successfully", "id": user.id, "username": user.username, "permission": user.permission}
 
-@app.get("/calibrations/", response_model=List[CalibrationProject])
+@app.get("/calibrations/", response_model=List[CalibrationProjectResponse])
 def get_calibrations(user_id: int):
     with Session(engine) as session:
         statement = select(CalibrationProject).where(CalibrationProject.user_id == user_id)
         projects = session.exec(statement).all()
-        return projects
+        response_projects = []
+        for proj in projects:
+            # Query for the user associated with this project
+            user_statement = select(User).where(User.id == proj.user_id)
+            user = session.exec(user_statement).first()
+            response_projects.append(
+                CalibrationProjectResponse(
+                    id=proj.id,
+                    name=proj.name,
+                    created_at=proj.created_at,
+                    user_id=proj.user_id,
+                    username=user.username if user else "Unknown"
+                )
+            )
+        return response_projects
 
 @app.post("/calibrations/", response_model=CalibrationProject)
 def create_calibration_project(cal_proj: CalibrationProjectCreate):

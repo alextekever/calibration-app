@@ -29,11 +29,12 @@ const CalibrationIndex: React.FC = () => {
       .then((data) => {
         // Assume the backend returns a list of CalibrationProject objects.
         const projects: Calibration[] = data.map((p: any) => ({
-          id: p.id, // now a uuid string
+          id: p.id,
           name: p.name,
           createdAt: new Date(p.created_at).toLocaleString(),
-          user: username, // you may also include the actual user name from p if available
+          user: p.username, // now use the username from the response
         }));
+        
         setCalibrations(projects);
       })
       .catch(console.error);
