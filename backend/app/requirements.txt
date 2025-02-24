@@ -1,6 +1,7 @@
 fastapi
-uvicorn
-pandas
-sqlmodel
-pydantic
 fastapi-cors
+pydantic
+sqlmodel
+python-jose[cryptography]  # For JWT
+passlib
+fastapi-security
