@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
+const API_URL = process.env.REACT_APP_API_URL; // Ensure this variable is set
 
 
 const Login: React.FC = () => {
@@ -16,7 +17,7 @@ const Login: React.FC = () => {
     formData.append('password', password);
     
     try {
-      const response = await fetch('${API_URL}/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
