@@ -1,5 +1,6 @@
-![alt text](public\Red and Black - TEKEVER.png "Title")public\
+![screenshot](public/logo.png)
 
+...bash
 calibration-app/
 ├── node_modules/
 ├── public/
@@ -15,3 +16,4 @@ calibration-app/
 │ └── index.css
 ├── package.json
 └── vite.config.ts
+...
