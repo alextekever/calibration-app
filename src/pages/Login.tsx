@@ -41,7 +41,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
       <Paper sx={{ p: 4, width: 300 }}>
         <Typography variant="h5" align="center" gutterBottom>
           Login
@@ -67,14 +67,14 @@ const Login: React.FC = () => {
           </Button>
         </form>
       </Paper>
+      
       {/* Footer Information */}
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
         <Typography variant="body2">Accessing calibration-app-three.vercel.app</Typography>
         <Typography variant="body2">Calibration App Web</Typography>
         <Typography variant="body2">Version 2025.02.24</Typography>
-        <Typography variant="body2" sx={{ display: 'block', mt: 1 }}>#Space</Typography>
         <Typography variant="body2">Built by Tekever Space Mechanical Team</Typography>
-        <img src="/logo.png" alt="Logo" style={{ width: 50, height: 50, marginBottom: 8 }} />
+        <img src="/logo.png" alt="Logo" style={{height: 20, marginBottom: 2 }} />
       </Box>
     </Box>
   );
