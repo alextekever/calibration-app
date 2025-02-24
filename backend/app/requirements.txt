@@ -6,3 +6,4 @@ python-jose[cryptography]  # For JWT
 passlib
 fastapi-security
 uvicorn==0.22.0
+python-multipart
