@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, status, Form, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+import os
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
@@ -66,7 +67,7 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-DATABASE_URL = "sqlite:///database.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///database.db")
 engine = create_engine(DATABASE_URL, echo=True)
 
 def create_db_and_tables():
