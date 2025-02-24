@@ -39,42 +39,57 @@ const Login: React.FC = () => {
       console.error(error);
     }
   };
-
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Paper sx={{ p: 4, width: 300 }}>
-        <Typography variant="h5" align="center" gutterBottom>
-          Login
-        </Typography>
-        <form onSubmit={handleLogin}>
-          <TextField 
-            label="Username" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
-            fullWidth 
-            margin="normal"
-          />
-          <TextField 
-            label="Password" 
-            type="password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            fullWidth 
-            margin="normal"
-          />
-          <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+      justifyContent: 'space-between'
+    }}>
+      <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Paper sx={{ p: 4, width: 300 }}>
+          <Typography variant="h5" align="center" gutterBottom>
             Login
-          </Button>
-        </form>
-      </Paper>
-      
-      {/* Footer Information */}
-      <Box sx={{ mt: 3, textAlign: 'center' }}>
-        <Typography variant="body2">Accessing calibration-app-three.vercel.app</Typography>
-        <Typography variant="body2">Calibration App Web</Typography>
-        <Typography variant="body2">Version 2025.02.24</Typography>
-        <Typography variant="body2">Built by Tekever Space Mechanical Team</Typography>
-        <img src="/logo.png" alt="Logo" style={{height: 20, marginBottom: 2 }} />
+          </Typography>
+          <form onSubmit={handleLogin}>
+            <TextField
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              fullWidth
+              margin="normal"
+            />
+            <TextField
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              margin="normal"
+            />
+            <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
+              Login
+            </Button>
+          </form>
+        </Paper>
+      </Box>
+
+      <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f0f0f0' }}>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+          Accessing calibration-app-three.vercel.app
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+          Calibration App Web
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+          Version 2025.02.24
+        </Typography>
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+            Built by Tekever Space Mechanical Team
+          </Typography>
+        </Box>
+        <img src="/logo.png" alt="Logo" style={{ height: 15, marginBottom: 2 }} />
       </Box>
     </Box>
   );
