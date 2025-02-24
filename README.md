@@ -1,5 +1,4 @@
-![alt text](public\Red and Black - TEKEVER.png "Title")public\
-
+![alt text](public\Red and Black - TEKEVER.png "Title")
 calibration-app/
 ├── node_modules/
 ├── public/
