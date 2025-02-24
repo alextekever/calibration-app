@@ -74,22 +74,22 @@ const Login: React.FC = () => {
         </Paper>
       </Box>
 
-      <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#f0f0f0' }}>
-        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+      <Box sx={{ textAlign: 'center', p: 2}}>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.65rem' }}>
           Accessing calibration-app-three.vercel.app
         </Typography>
-        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.65rem' }}>
           Calibration App Web
         </Typography>
-        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+        <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.65rem' }}>
           Version 2025.02.24
         </Typography>
         <Box sx={{ mt: 1 }}>
-          <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.875rem' }}>
+          <Typography variant="body2" sx={{ color: 'grey', fontSize: '0.65rem' }}>
             Built by Tekever Space Mechanical Team
           </Typography>
         </Box>
-        <img src="/logo.png" alt="Logo" style={{ height: 15, marginBottom: 2 }} />
+        <img src="/logo.png" alt="Logo" style={{ height: 10, marginBottom: 1 }} />
       </Box>
     </Box>
   );
