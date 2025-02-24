@@ -86,6 +86,6 @@ This application is intended for:
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/yourusername/calibration-app.git
+   git clone https://github.com/alextekever/calibration-app.git
    cd calibration-app
    ```
