@@ -27,12 +27,14 @@ const Login: React.FC = () => {
         return;
       }
       const data = await response.json();
-      // Save the token, username, permission, and now user_id from the response
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("username", data.username);
-      localStorage.setItem("permission", data.permission.toString());
-      localStorage.setItem("user_id", data.id.toString()); // NEW: Save the user id
-      navigate('/dashboard');
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("username", data.username);
+        localStorage.setItem("permission", data.permission.toString());
+        localStorage.setItem("user_id", data.id.toString());  // Ensure this is present
+        navigate('/dashboard');
+        console.log("Logged in user_id:", localStorage.getItem("user_id"));
+
+
     } catch (error) {
       console.error(error);
     }
