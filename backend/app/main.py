@@ -120,7 +120,7 @@ class CalibrationProjectResponse(BaseModel):
     created_at: datetime
     user_id: int
     username: str
-    
+
 
 # === Routes ===
 @app.on_event("startup")
@@ -157,9 +157,9 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
         # return {"message": "Logged in successfully", "id": user.id, "username": user.username, "permission": user.permission}
 
 @app.get("/calibrations/", response_model=List[CalibrationProjectResponse])
-def get_calibrations(user_id: int):
+def get_calibrations():
     with Session(engine) as session:
-        statement = select(CalibrationProject).where(CalibrationProject.user_id == user_id)
+        statement = select(CalibrationProject)
         projects = session.exec(statement).all()
         response_projects = []
         for proj in projects:
@@ -176,6 +176,7 @@ def get_calibrations(user_id: int):
                 )
             )
         return response_projects
+
 
 @app.post("/calibrations/", response_model=CalibrationProject)
 def create_calibration_project(cal_proj: CalibrationProjectCreate):

@@ -24,7 +24,7 @@ const CalibrationIndex: React.FC = () => {
 
   // Fetch calibration projects from the backend when the component mounts.
   useEffect(() => {
-    fetch(`${API_URL}/calibrations/?user_id=${user_id}`)
+    fetch(`${API_URL}/calibrations/`)
       .then((res) => res.json())
       .then((data) => {
         // Assume the backend returns a list of CalibrationProject objects.
