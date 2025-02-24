@@ -154,11 +154,14 @@ const CalibrationPage: React.FC = () => {
 
   useEffect(() => {
     return () => {
+      console.log("CalibrationPage unmounting – closing serial port");
       closeSerialPort();
       if (averagingIntervalRef.current) clearInterval(averagingIntervalRef.current);
       if (averagingTimeoutRef.current) clearTimeout(averagingTimeoutRef.current);
     };
   }, []);
+  
+  
 
   const closeSerialPort = async () => {
     try {
@@ -272,10 +275,13 @@ const CalibrationPage: React.FC = () => {
   };
 
   const handleReturnToDashboard = async () => {
+    console.log("Return button pressed – closing serial port");
     await closeSerialPort();
+    console.log("Serial port should now be closed");
     navigate('/dashboard');
+    // As a safeguard, you might force a full page reload:
+    window.location.reload();
   };
-
   const handleThermistorToggle = (id: number) => {
     setThermistors(thermistors.map(t => 
       t.id === id ? { ...t, active: !t.active } : t
