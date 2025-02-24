@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
+
+
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +16,7 @@ const Login: React.FC = () => {
     formData.append('password', password);
     
     try {
-      const response = await fetch('http://127.0.0.1:8000/login', {
+      const response = await fetch('${API_URL}/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),

@@ -76,6 +76,9 @@ interface CustomizedComponentProps {
   calibrationPoints: CalibrationPoint[];
 }
 
+const API_URL = process.env.REACT_APP_API_URL;
+
+
 const CalibrationPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -122,7 +125,7 @@ const CalibrationPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      fetch(`http://127.0.0.1:8000/calibrations/${id}/log`)
+      fetch(`${API_URL}/calibrations/${id}/log`)
         .then((res) => res.json())
         .then((data) => {
           setCalibrationLog(data);
@@ -488,7 +491,7 @@ const CalibrationPage: React.FC = () => {
     };
     
     console.log("Calibration log payload:", formData);
-    fetch(`http://127.0.0.1:8000/calibrations/${id}/log`, {
+    fetch(`${API_URL}/calibrations/${id}/log`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),

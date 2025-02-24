@@ -11,6 +11,9 @@ interface Calibration {
   user: string;
 }
 
+const API_URL = process.env.REACT_APP_API_URL;
+
+
 const CalibrationIndex: React.FC = () => {
   const navigate = useNavigate();
   const username = localStorage.getItem("username") || "Admin";
@@ -21,7 +24,7 @@ const CalibrationIndex: React.FC = () => {
 
   // Fetch calibration projects from the backend when the component mounts.
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/calibrations/?user_id=${user_id}`)
+    fetch(`${API_URL}/calibrations/?user_id=${user_id}`)
       .then((res) => res.json())
       .then((data) => {
         // Assume the backend returns a list of CalibrationProject objects.
@@ -45,7 +48,7 @@ const CalibrationIndex: React.FC = () => {
       name: newCalibrationName,
       user_id: Number(user_id),
     };
-    fetch("http://127.0.0.1:8000/calibrations/", {
+    fetch("${API_URL}/calibrations/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(postData),
@@ -75,7 +78,7 @@ const CalibrationIndex: React.FC = () => {
 // Inside CalibrationIndex.tsx's handleDelete function:
 const handleDelete = (id: string) => {
   if (window.confirm("Are you sure you want to delete this calibration?")) {
-    fetch(`http://127.0.0.1:8000/calibrations/${id}`, {
+    fetch(`${API_URL}/calibrations/${id}`, {
       method: "DELETE",
     })
       .then((res) => {
