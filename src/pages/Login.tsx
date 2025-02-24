@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 const API_URL = import.meta.env.VITE_API_URL;
 console.log("API_URL:", API_URL);
 
-
-
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -29,10 +27,11 @@ const Login: React.FC = () => {
         return;
       }
       const data = await response.json();
-      // Save the token (for Bearer auth) – in production consider HTTP-only cookies
+      // Save the token, username, permission, and now user_id from the response
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("username", data.username);
       localStorage.setItem("permission", data.permission.toString());
+      localStorage.setItem("user_id", data.id.toString()); // NEW: Save the user id
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
