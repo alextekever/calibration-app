@@ -48,7 +48,7 @@ const CalibrationIndex: React.FC = () => {
       name: newCalibrationName,
       user_id: Number(user_id),
     };
-    fetch("${API_URL}/calibrations/", {
+    fetch(`${API_URL}/calibrations/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(postData),
