@@ -1,7 +1,6 @@
 ![screenshot](public/logo.png)
 
-# ...bash
-
+...bash
 calibration-app/
 ├── node_modules/
 ├── public/
