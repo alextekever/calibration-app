@@ -237,7 +237,7 @@ const CalibrationPage: React.FC = () => {
       console.log("Port opened.");
       // Immediately send start command for PT100 channels:
       // "29,30,31,32;10,10,1,1" (read_time=10, switch_delay=10, temperature_mode=1, pt100_flag=1)
-      await sendCommand("29,30,31,32;10,10,1,1");
+      await sendCommand("29,30,31,32;10,10,1,0");
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
       const reader = textDecoder.readable.getReader();
