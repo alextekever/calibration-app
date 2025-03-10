@@ -190,62 +190,60 @@ const CalibrationPage: React.FC = () => {
   // Process incoming data from the ESP32.
   // The ESP32 sends four comma-separated resistance values (in ohms) for channels 29–32.
   // New updateSensorData() for the ESP32 loop output format
-const updateSensorData = (line: string) => {
-  const trimmed = line.trim();
-  console.log("Received line:", trimmed);
-  // Ignore empty lines or those starting with "ets"
-  if (!trimmed || trimmed.startsWith("ets")) return;
-
-  // Expected format: "29:1234.56;30:2345.67;31:3456.78;32:4567.89"
-  const tokens = trimmed.split(";");
-  // Create an array for channels 29-32 (index 0 => channel 29, etc.)
-  const values: number[] = [];
-  tokens.forEach(token => {
-    const parts = token.split(":");
-    if (parts.length === 2) {
-      const port = parseInt(parts[0]);
-      const val = parseFloat(parts[1]);
-      if (port >= 29 && port <= 32) {
-        // Store value at index (port - 29)
-        values[port - 29] = val;
+  const updateSensorData = (line: string) => {
+    const trimmed = line.trim();
+    console.log("Received line:", trimmed);
+    if (!trimmed || trimmed.startsWith("ets")) return;
+  
+    // Build a mapping: channel number -> resistance value.
+    const tokens = trimmed.split(";");
+    const dataMap: { [channel: number]: number } = {};
+    tokens.forEach(token => {
+      const parts = token.split(":");
+      if (parts.length === 2) {
+        const channel = parseInt(parts[0]);
+        const value = parseFloat(parts[1]);
+        if (!isNaN(channel) && !isNaN(value)) {
+          dataMap[channel] = value;
+        }
       }
-    }
-  });
-
-  // Ensure we got all 4 values
-  if (values.length < 4 || values.some(v => isNaN(v))) {
-    console.warn("Incomplete or invalid data:", values);
-    return;
-  }
-
-  const timestamp = Date.now();
-  const currentTimeStr = new Date(timestamp).toLocaleTimeString();
-  const newPoint: ChartDataPoint = { time: currentTimeStr, timestamp };
-
-  setThermistors(prev =>
-    prev.map((t, index) => {
-      // UI thermistor index 0 corresponds to channel 29, etc.
-      const resistance = values[index];
-      const channel = index + 29;
-      const coeff = calibrationCoeffs[channel];
-      let tempC = 0;
-      if (resistance > 0 && coeff) {
-        const lnR = Math.log(resistance);
-        const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
-        tempC = tempK - 273.15;
-      }
-      newPoint[t.name] = tempC;
-      return { ...t, resistance, temperature: tempC };
-    })
-  );
-
-  setChartData(prev => {
-    const newData = [...prev, newPoint];
-    if (newData.length > 500) newData.shift();
-    return newData;
-  });
-};
-
+    });
+  
+    const timestamp = Date.now();
+    const currentTimeStr = new Date(timestamp).toLocaleTimeString();
+    const newPoint: ChartDataPoint = { time: currentTimeStr, timestamp };
+  
+    // Update thermistors.
+    setThermistors(prev =>
+      prev.map(t => {
+        if (!t.active) return t;
+        const channel = t.id + 28; // Mapping: UI thermistor id 1 -> channel 29, etc.
+        if (dataMap.hasOwnProperty(channel)) {
+          const resistance = dataMap[channel];
+          const coeff = calibrationCoeffs[channel];
+          let tempC = 0;
+          if (resistance > 0 && coeff) {
+            const lnR = Math.log(resistance);
+            const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
+            tempC = tempK - 273.15;
+          }
+          newPoint[t.name] = tempC;
+          return { ...t, resistance, temperature: tempC };
+        } else {
+          // No new reading for this channel: set to NaN (or leave unchanged)
+          newPoint[t.name] = NaN;
+          return { ...t, resistance: NaN, temperature: NaN };
+        }
+      })
+    );
+  
+    setChartData(prev => {
+      const newData = [...prev, newPoint];
+      if (newData.length > 500) newData.shift();
+      return newData;
+    });
+  };
+  
 
   // Open the serial port and immediately send the start command.
   const openSerialPort = async (port: any) => {
