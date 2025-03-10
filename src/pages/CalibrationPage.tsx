@@ -526,7 +526,6 @@ const CalibrationPage: React.FC = () => {
         console.error(`Server response (${res.status}):`, text);
         throw new Error(`Server responded with ${res.status}: ${res.statusText}`);
       }
-      const data = await res.json();
       setCalibrationLog(prev => [...prev, entry]);
     } catch (error) {
       console.error("Error saving calibration data:", error);
