@@ -189,43 +189,63 @@ const CalibrationPage: React.FC = () => {
 
   // Process incoming data from the ESP32.
   // The ESP32 sends four comma-separated resistance values (in ohms) for channels 29–32.
-  const updateSensorData = (line: string) => {
-    const trimmed = line.trim();
-    console.log("Received line:", trimmed);
-    if (!trimmed || !trimmed.includes(",") || trimmed.startsWith("ets")) return;
-    const parts = trimmed.split(",");
-    if (parts.length !== 4) {
-      console.warn("Invalid data line:", trimmed);
-      return;
-    }
-    const resistances = parts.map(v => parseFloat(v));
-    const timestamp = Date.now();
-    const currentTimeStr = new Date(timestamp).toLocaleTimeString();
-    const newPoint: ChartDataPoint = { time: currentTimeStr, timestamp };
+  // New updateSensorData() for the ESP32 loop output format
+const updateSensorData = (line: string) => {
+  const trimmed = line.trim();
+  console.log("Received line:", trimmed);
+  // Ignore empty lines or those starting with "ets"
+  if (!trimmed || trimmed.startsWith("ets")) return;
 
-    setThermistors(prev =>
-      prev.map((t, index) => {
-        if (!t.active) return t;
-        // Map UI thermistor id to channel: 1 → 29, 2 → 30, etc.
-        const channel = t.id + 28;
-        const resistance = resistances[index];
-        const coeff = calibrationCoeffs[channel];
-        let tempC = 0;
-        if (resistance > 0 && coeff) {
-          const lnR = Math.log(resistance);
-          const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
-          tempC = tempK - 273.15;
-        }
-        newPoint[t.name] = tempC;
-        return { ...t, resistance, temperature: tempC };
-      })
-    );
-    setChartData(prev => {
-      const newData = [...prev, newPoint];
-      if (newData.length > 500) newData.shift();
-      return newData;
-    });
-  };
+  // Expected format: "29:1234.56;30:2345.67;31:3456.78;32:4567.89"
+  const tokens = trimmed.split(";");
+  // Create an array for channels 29-32 (index 0 => channel 29, etc.)
+  const values: number[] = [];
+  tokens.forEach(token => {
+    const parts = token.split(":");
+    if (parts.length === 2) {
+      const port = parseInt(parts[0]);
+      const val = parseFloat(parts[1]);
+      if (port >= 29 && port <= 32) {
+        // Store value at index (port - 29)
+        values[port - 29] = val;
+      }
+    }
+  });
+
+  // Ensure we got all 4 values
+  if (values.length < 4 || values.some(v => isNaN(v))) {
+    console.warn("Incomplete or invalid data:", values);
+    return;
+  }
+
+  const timestamp = Date.now();
+  const currentTimeStr = new Date(timestamp).toLocaleTimeString();
+  const newPoint: ChartDataPoint = { time: currentTimeStr, timestamp };
+
+  setThermistors(prev =>
+    prev.map((t, index) => {
+      // UI thermistor index 0 corresponds to channel 29, etc.
+      const resistance = values[index];
+      const channel = index + 29;
+      const coeff = calibrationCoeffs[channel];
+      let tempC = 0;
+      if (resistance > 0 && coeff) {
+        const lnR = Math.log(resistance);
+        const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
+        tempC = tempK - 273.15;
+      }
+      newPoint[t.name] = tempC;
+      return { ...t, resistance, temperature: tempC };
+    })
+  );
+
+  setChartData(prev => {
+    const newData = [...prev, newPoint];
+    if (newData.length > 500) newData.shift();
+    return newData;
+  });
+};
+
 
   // Open the serial port and immediately send the start command.
   const openSerialPort = async (port: any) => {
