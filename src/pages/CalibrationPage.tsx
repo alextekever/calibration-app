@@ -220,7 +220,7 @@ const CalibrationPage: React.FC = () => {
         const channel = t.id + 28; // Mapping: UI thermistor id 1 -> channel 29, etc.
         if (dataMap.hasOwnProperty(channel)) {
           const resistance = dataMap[channel];
-          const coeff = calibrationCoeffs[channel];
+          const coeff = calibrationCoeffs[channel] || computeDefaultCoeffs()[channel];
           let tempC = 0;
           if (t.resistance > 0 && coeff) {
             const lnR = Math.log(t.resistance);
