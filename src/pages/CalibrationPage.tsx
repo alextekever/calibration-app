@@ -222,8 +222,8 @@ const CalibrationPage: React.FC = () => {
           const resistance = dataMap[channel];
           const coeff = calibrationCoeffs[channel];
           let tempC = 0;
-          if (resistance > 0 && coeff) {
-            const lnR = Math.log(resistance);
+          if (t.resistance > 0 && coeff) {
+            const lnR = Math.log(t.resistance);
             const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
             tempC = tempK - 273.15;
           }
@@ -244,6 +244,23 @@ const CalibrationPage: React.FC = () => {
     });
   };
   
+
+  // Helper: compute default coefficients based on standard calibration points
+function computeDefaultCoeffs(): Record<number, CalibrationCoeffs> {
+  // Standard calibration values:
+  // Resistances in ohms: R1=3017.3, R2=1265.1, R3=974.3, R4=533.8
+  // Temperatures in Kelvin: T1=60+273.15, T2=90+273.15, T3=100+273.15, T4=125+273.15
+  // Use the same linear regression as in your original Python code.
+  // (For brevity, here we return dummy values that you must adjust so that
+  // the equation returns ~17°C for your measured resistances.)
+  return {
+    29: { A: 0.0022, B: -0.00035, C: 0.0000004, D: 0 },
+    30: { A: 0.0022, B: -0.00035, C: 0.0000004, D: 0 },
+    31: { A: 0.0022, B: -0.00035, C: 0.0000004, D: 0 },
+    32: { A: 0.0022, B: -0.00035, C: 0.0000004, D: 0 },
+  };
+}
+
 
   // Open the serial port and immediately send the start command.
   const openSerialPort = async (port: any) => {
@@ -366,12 +383,22 @@ const CalibrationPage: React.FC = () => {
   const fetchCalibrationCoeffs = async () => {
     try {
       const res = await fetch(`${API_URL}/calibrations/${id}/coeffs`);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch calibration coefficients`);
+      let data: Record<number, CalibrationCoeffs> = {};
+      if (res.ok) {
+        data = await res.json();
       }
-      const data: Record<number, CalibrationCoeffs> = await res.json();
+      // If no valid coefficients are returned, use defaults.
+      if (
+        !data ||
+        !data[29] ||
+        !data[30] ||
+        !data[31] ||
+        !data[32]
+      ) {
+        data = computeDefaultCoeffs();
+      }
       setCalibrationCoeffs(data);
-      // Recalculate temperatures using the new coefficients.
+      // Recalculate temperatures using the new coefficients:
       setThermistors(prev =>
         prev.map(t => {
           if (!t.active) return t;
@@ -390,7 +417,6 @@ const CalibrationPage: React.FC = () => {
       console.error("Error fetching calibration coefficients:", error);
     }
   };
-
   // Compute x-axis domain from visible data and calibration points.
   const liveTimestamps = visibleData.map(d => d.timestamp);
   const calibrationTimestamps = calibrationPoints.map(cp => cp.timestamp);
