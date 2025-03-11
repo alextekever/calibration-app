@@ -85,6 +85,82 @@ interface CustomizedComponentProps {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+/* ---------- Helper Functions ---------- */
+
+// Solve a 4x4 linear system using Gaussian elimination.
+function solveLinearSystem(X: number[][], Y: number[]): number[] {
+  const n = 4;
+  const A = X.map(row => row.slice());
+  const b = Y.slice();
+  for (let i = 0; i < n; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+        maxRow = k;
+      }
+    }
+    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+    [b[i], b[maxRow]] = [b[maxRow], b[i]];
+    if (Math.abs(A[i][i]) < 1e-12) {
+      throw new Error("Matrix is singular or nearly singular");
+    }
+    for (let k = i + 1; k < n; k++) {
+      const factor = A[k][i] / A[i][i];
+      for (let j = i; j < n; j++) {
+        A[k][j] -= factor * A[i][j];
+      }
+      b[k] -= factor * b[i];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = 0;
+    for (let j = i + 1; j < n; j++) {
+      sum += A[i][j] * x[j];
+    }
+    x[i] = (b[i] - sum) / A[i][i];
+  }
+  return x;
+}
+
+// Compute coefficients for a given channel using calibration log data.
+// For channel 29 use measuredResistanceT1, 30 → measuredResistanceT2, etc.
+function computeCoeffs(channel: number, calibrationLog: CalibrationLogEntry[]): CalibrationCoeffs {
+  // Extract calibration points for this channel.
+  const points: { resistance: number, temperature: number }[] = [];
+  calibrationLog.forEach(log => {
+    let r = 0;
+    if (channel === 29) r = log.measuredResistanceT1;
+    else if (channel === 30) r = log.measuredResistanceT2;
+    else if (channel === 31) r = log.measuredResistanceT3;
+    else if (channel === 32) r = log.measuredResistanceT4;
+    if (r > 0) {
+      // Convert measured temperature (°C) to Kelvin.
+      points.push({ resistance: r, temperature: log.measuredTemperature + 273.15 });
+    }
+  });
+  // If fewer than 4 points, use default standard values.
+  if (points.length < 4) {
+    const standard_resistances = [3017.3, 1265.1, 974.3, 533.8];
+    const standard_temperatures = [60 + 273.15, 90 + 273.15, 100 + 273.15, 125 + 273.15];
+    for (let i = 0; i < 4; i++) {
+      points[i] = { resistance: standard_resistances[i], temperature: standard_temperatures[i] };
+    }
+  } else {
+    // Use only the last 4 calibration points.
+    points.splice(0, points.length - 4);
+  }
+  const X = points.map(p => {
+    const lnR = Math.log(p.resistance);
+    return [1, lnR, lnR * lnR, lnR * lnR * lnR];
+  });
+  const Y = points.map(p => 1 / p.temperature);
+  const coeffs = solveLinearSystem(X, Y);
+  return { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] };
+}
+
+/* ---------- Component Begins ---------- */
+
 const CalibrationPage: React.FC = () => {
   const { id } = useParams(); // calibration project ID from URL
   const navigate = useNavigate();
@@ -99,14 +175,7 @@ const CalibrationPage: React.FC = () => {
     { id: 4, name: 'Thermistor 4', resistance: 0, temperature: 0, color: thermistorColors[3], active: true },
   ]);
 
-  // Default calibration coefficients for channels 29–32.
-  const [calibrationCoeffs, setCalibrationCoeffs] = useState<Record<number, CalibrationCoeffs>>({
-    29: { A: 0.001, B: 0.0002, C: 0, D: 0 },
-    30: { A: 0.001, B: 0.0002, C: 0, D: 0 },
-    31: { A: 0.001, B: 0.0002, C: 0, D: 0 },
-    32: { A: 0.001, B: 0.0002, C: 0, D: 0 },
-  });
-
+  // Remove separate calibrationCoeffs state.
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [calibrationLog, setCalibrationLog] = useState<CalibrationLogEntry[]>([]);
   const [calibrationPoints, setCalibrationPoints] = useState<CalibrationPoint[]>([]);
@@ -188,13 +257,12 @@ const CalibrationPage: React.FC = () => {
   };
 
   // Process incoming data from the ESP32.
-  // The ESP32 sends four comma-separated resistance values (in ohms) for channels 29–32.
-  // New updateSensorData() for the ESP32 loop output format
+  // The ESP32 sends a semicolon-separated list of tokens like "29:resistance;31:resistance", etc.
   const updateSensorData = (line: string) => {
     const trimmed = line.trim();
     console.log("Received line:", trimmed);
     if (!trimmed || trimmed.startsWith("ets")) return;
-  
+
     // Build a mapping: channel number -> resistance value.
     const tokens = trimmed.split(";");
     const dataMap: { [channel: number]: number } = {};
@@ -208,115 +276,41 @@ const CalibrationPage: React.FC = () => {
         }
       }
     });
-  
+
     const timestamp = Date.now();
     const currentTimeStr = new Date(timestamp).toLocaleTimeString();
     const newPoint: ChartDataPoint = { time: currentTimeStr, timestamp };
-  
+
     // Update thermistors.
     setThermistors(prev =>
       prev.map(t => {
         if (!t.active) return t;
-        const channel = t.id + 28; // Mapping: UI thermistor id 1 -> channel 29, etc.
+        const channel = t.id + 28; // UI thermistor id 1 -> channel 29, etc.
         if (dataMap.hasOwnProperty(channel)) {
           const resistance = dataMap[channel];
-          const coeff = calibrationCoeffs[channel] || computeDefaultCoeffs()[channel];
+          // Compute coefficients on the fly using current calibration log.
+          const coeff = computeCoeffs(channel, calibrationLog);
           let tempC = 0;
-          if (t.resistance > 0 && coeff) {
-            const lnR = Math.log(t.resistance);
+          if (resistance > 0 && coeff) {
+            const lnR = Math.log(resistance);
             const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
             tempC = tempK - 273.15;
           }
           newPoint[t.name] = tempC;
           return { ...t, resistance, temperature: tempC };
         } else {
-          // No new reading for this channel: set to NaN (or leave unchanged)
           newPoint[t.name] = NaN;
           return { ...t, resistance: NaN, temperature: NaN };
         }
       })
     );
-  
+
     setChartData(prev => {
       const newData = [...prev, newPoint];
       if (newData.length > 500) newData.shift();
       return newData;
     });
   };
-  
-
-  // Helper: compute default coefficients based on standard calibration points
-  function computeDefaultCoeffs(): Record<number, CalibrationCoeffs> {
-    const standard_resistances = [3017.3, 1265.1, 974.3, 533.8];  // R1, R2, R3, R4 in ohms
-    const standard_temperatures = [
-      60 + 273.15,
-      90 + 273.15,
-      100 + 273.15,
-      125 + 273.15
-    ];  // in Kelvin
-  
-    // Build the design matrix X and vector Y for the Steinhart–Hart equation:
-    // 1/T = A + B*ln(R) + C*(ln(R))^2 + D*(ln(R))^3
-    const X = standard_resistances.map(r => {
-      const lnR = Math.log(r);
-      return [1, lnR, lnR * lnR, lnR * lnR * lnR];
-    });
-    const Y = standard_temperatures.map(T => 1 / T);
-  
-    // Solve for coefficients [A, B, C, D]
-    const coeffs = solveLinearSystem(X, Y);
-  
-    return {
-      29: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
-      30: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
-      31: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
-      32: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
-    };
-  }
-
-// Helper: Solve a 4x4 linear system using Gaussian elimination.
-function solveLinearSystem(X: number[][], Y: number[]): number[] {
-  const n = 4;
-  // Make copies of X and Y
-  const A = X.map(row => row.slice());
-  const b = Y.slice();
-  for (let i = 0; i < n; i++) {
-    // Find pivot
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
-        maxRow = k;
-      }
-    }
-    // Swap rows in A and b
-    [A[i], A[maxRow]] = [A[maxRow], A[i]];
-    [b[i], b[maxRow]] = [b[maxRow], b[i]];
-
-    if (Math.abs(A[i][i]) < 1e-12) {
-      throw new Error("Matrix is singular or nearly singular");
-    }
-    // Eliminate rows below
-    for (let k = i + 1; k < n; k++) {
-      const factor = A[k][i] / A[i][i];
-      for (let j = i; j < n; j++) {
-        A[k][j] -= factor * A[i][j];
-      }
-      b[k] -= factor * b[i];
-    }
-  }
-  // Back substitution
-  const x = new Array(n).fill(0);
-  for (let i = n - 1; i >= 0; i--) {
-    let sum = 0;
-    for (let j = i + 1; j < n; j++) {
-      sum += A[i][j] * x[j];
-    }
-    x[i] = (b[i] - sum) / A[i][i];
-  }
-  return x;
-}
-
-
 
   // Open the serial port and immediately send the start command.
   const openSerialPort = async (port: any) => {
@@ -327,7 +321,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
       setSerialConnected(true);
       console.log("Port opened.");
       // Immediately send start command for PT100 channels:
-      // "29,30,31,32;10,10,1,1" (read_time=10, switch_delay=10, temperature_mode=1, pt100_flag=1)
+      // "29,30,31,32;10,10,1,0" (read_time=10, switch_delay=10, temperature_mode=1, pt100_flag=0)
       await sendCommand("29,30,31,32;10,10,1,0");
       const textDecoder = new TextDecoderStream();
       port.readable.pipeTo(textDecoder.writable);
@@ -433,46 +427,10 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
     URL.revokeObjectURL(url);
   };
 
-  // Fetch updated calibration coefficients from the backend.
-  // Ensure your backend implements GET /calibrations/{id}/coeffs returning an object
-  // with keys "29", "30", "31", "32" each containing the coefficient values.
-  const fetchCalibrationCoeffs = async () => {
-    try {
-      const res = await fetch(`${API_URL}/calibrations/${id}/coeffs`);
-      let data: Record<number, CalibrationCoeffs> = {};
-      if (res.ok) {
-        data = await res.json();
-      }
-      // If no valid coefficients are returned, use defaults.
-      if (
-        !data ||
-        !data[29] ||
-        !data[30] ||
-        !data[31] ||
-        !data[32]
-      ) {
-        data = computeDefaultCoeffs();
-      }
-      setCalibrationCoeffs(data);
-      // Recalculate temperatures using the new coefficients:
-      setThermistors(prev =>
-        prev.map(t => {
-          if (!t.active) return t;
-          const channel = t.id + 28;
-          const coeff = data[channel];
-          let tempC = 0;
-          if (t.resistance > 0 && coeff) {
-            const lnR = Math.log(t.resistance);
-            const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
-            tempC = tempK - 273.15;
-          }
-          return { ...t, temperature: tempC };
-        })
-      );
-    } catch (error) {
-      console.error("Error fetching calibration coefficients:", error);
-    }
+  const handleTimeRangeChange = (_event: Event, newValue: number | number[]) => {
+    setTimeRangeValue(newValue as number[]);
   };
+
   // Compute x-axis domain from visible data and calibration points.
   const liveTimestamps = visibleData.map(d => d.timestamp);
   const calibrationTimestamps = calibrationPoints.map(cp => cp.timestamp);
@@ -503,7 +461,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
   };
 
   // Calibration handler.
-  // If averagingTime > 0, average resistance data over that period, then post a calibration log and update coefficients.
+  // If averagingTime > 0, average resistance data over that period, then post a calibration log and update temperatures.
   const handleCalibrate = () => {
     if (measuredTempInput === '' || isNaN(Number(measuredTempInput))) {
       console.warn("Invalid temperature input");
@@ -569,8 +527,21 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
           return newCalibrations;
         });
         saveCalibrationEntry(newEntry).then(() => {
-          // Fetch the updated calibration coefficients from the backend.
-          fetchCalibrationCoeffs();
+          // After calibration, update thermistor temperatures using new coefficients computed from the calibration log.
+          setThermistors(prev =>
+            prev.map(t => {
+              if (!t.active) return t;
+              const channel = t.id + 28;
+              const coeff = computeCoeffs(channel, calibrationLog);
+              let tempC = 0;
+              if (t.resistance > 0 && coeff) {
+                const lnR = Math.log(t.resistance);
+                const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
+                tempC = tempK - 273.15;
+              }
+              return { ...t, temperature: tempC };
+            })
+          );
         });
         setAveragingInProgress(false);
         setMeasuredTempInput('');
@@ -598,11 +569,24 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
         }));
       setCalibrationPoints(prev => [...prev, ...newCalibrationPoints]);
       saveCalibrationEntry(newEntry).then(() => {
-        fetchCalibrationCoeffs();
+        setThermistors(prev =>
+          prev.map(t => {
+            if (!t.active) return t;
+            const channel = t.id + 28;
+            const coeff = computeCoeffs(channel, calibrationLog);
+            let tempC = 0;
+            if (t.resistance > 0 && coeff) {
+              const lnR = Math.log(t.resistance);
+              const tempK = 1 / (coeff.A + coeff.B * lnR + coeff.C * Math.pow(lnR, 2) + coeff.D * Math.pow(lnR, 3));
+              tempC = tempK - 273.15;
+            }
+            return { ...t, temperature: tempC };
+          })
+        );
       });
     }
   };
-
+  
   // Save calibration log entry and return a promise.
   const saveCalibrationEntry = async (entry: CalibrationLogEntry) => {
     const formData = {
@@ -632,11 +616,9 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
       setAveragingInProgress(false);
     }
   };
+  
 
-  const handleTimeRangeChange = (_event: Event, newValue: number | number[]) => {
-    setTimeRangeValue(newValue as number[]);
-  };
-
+  
   return (
     <Box>
       <TopBar
@@ -666,7 +648,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
             </Box>
           </Backdrop>
         )}
-
+  
         {serialConnected && (
           <>
             <Grid container spacing={2}>
@@ -699,7 +681,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
                     ))}
                   </FormGroup>
                 </Paper>
-
+  
                 <Typography variant="h6" align="center" gutterBottom>
                   Thermistor Readings
                 </Typography>
@@ -758,7 +740,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
                   </Button>
                 </Box>
               </Grid>
-
+  
               <Grid item xs={12} md={6}>
                 <Typography variant="h6" align="center" gutterBottom>
                   Live Temperature Graph
@@ -773,7 +755,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
                       aria-labelledby="time-range-slider"
                     />
                   </Box>
-
+  
                   <Box sx={{ height: 400, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={visibleData} margin={{ top: 5, right: 20, bottom: 20, left: 0 }}>
@@ -807,7 +789,7 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
                 </Paper>
               </Grid>
             </Grid>
-
+  
             <Box sx={{ mt: 4 }}>
               <Typography variant="h6" align="center" gutterBottom>
                 Calibration Log
@@ -853,5 +835,5 @@ function solveLinearSystem(X: number[][], Y: number[]): number[] {
     </Box>
   );
 };
-
+  
 export default CalibrationPage;
