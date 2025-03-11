@@ -246,20 +246,76 @@ const CalibrationPage: React.FC = () => {
   
 
   // Helper: compute default coefficients based on standard calibration points
-function computeDefaultCoeffs(): Record<number, CalibrationCoeffs> {
-  // Standard calibration values:
-  // Resistances in ohms: R1=3017.3, R2=1265.1, R3=974.3, R4=533.8
-  // Temperatures in Kelvin: T1=60+273.15, T2=90+273.15, T3=100+273.15, T4=125+273.15
-  // Use the same linear regression as in your original Python code.
-  // (For brevity, here we return dummy values that you must adjust so that
-  // the equation returns ~17°C for your measured resistances.)
-  return {
-    29: { A: 0.00095373842882, B: 0.00021617543909, C: 5.623922283161e-06, D: -8.684159121295e-08 },
-    30: { A: 0.00095373842882, B: 0.00021617543909, C: 5.623922283161e-06, D: -8.684159121295e-08 },
-    31: { A: 0.00095373842882, B: 0.00021617543909, C: 5.623922283161e-06, D: -8.684159121295e-08 },
-    32: { A: 0.00095373842882, B: 0.00021617543909, C: 5.623922283161e-06, D: -8.684159121295e-08 },
-  };
+  function computeDefaultCoeffs(): Record<number, CalibrationCoeffs> {
+    const standard_resistances = [3017.3, 1265.1, 974.3, 533.8];  // R1, R2, R3, R4 in ohms
+    const standard_temperatures = [
+      60 + 273.15,
+      90 + 273.15,
+      100 + 273.15,
+      125 + 273.15
+    ];  // in Kelvin
+  
+    // Build the design matrix X and vector Y for the Steinhart–Hart equation:
+    // 1/T = A + B*ln(R) + C*(ln(R))^2 + D*(ln(R))^3
+    const X = standard_resistances.map(r => {
+      const lnR = Math.log(r);
+      return [1, lnR, lnR * lnR, lnR * lnR * lnR];
+    });
+    const Y = standard_temperatures.map(T => 1 / T);
+  
+    // Solve for coefficients [A, B, C, D]
+    const coeffs = solveLinearSystem(X, Y);
+  
+    return {
+      29: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
+      30: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
+      31: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
+      32: { A: coeffs[0], B: coeffs[1], C: coeffs[2], D: coeffs[3] },
+    };
+  }
+
+// Helper: Solve a 4x4 linear system using Gaussian elimination.
+function solveLinearSystem(X: number[][], Y: number[]): number[] {
+  const n = 4;
+  // Make copies of X and Y
+  const A = X.map(row => row.slice());
+  const b = Y.slice();
+  for (let i = 0; i < n; i++) {
+    // Find pivot
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+        maxRow = k;
+      }
+    }
+    // Swap rows in A and b
+    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+    [b[i], b[maxRow]] = [b[maxRow], b[i]];
+
+    if (Math.abs(A[i][i]) < 1e-12) {
+      throw new Error("Matrix is singular or nearly singular");
+    }
+    // Eliminate rows below
+    for (let k = i + 1; k < n; k++) {
+      const factor = A[k][i] / A[i][i];
+      for (let j = i; j < n; j++) {
+        A[k][j] -= factor * A[i][j];
+      }
+      b[k] -= factor * b[i];
+    }
+  }
+  // Back substitution
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = 0;
+    for (let j = i + 1; j < n; j++) {
+      sum += A[i][j] * x[j];
+    }
+    x[i] = (b[i] - sum) / A[i][i];
+  }
+  return x;
 }
+
 
 
   // Open the serial port and immediately send the start command.
