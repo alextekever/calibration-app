@@ -260,7 +260,7 @@ const CalibrationPage: React.FC = () => {
   // The ESP32 sends a semicolon-separated list of tokens like "29:resistance;31:resistance", etc.
   const updateSensorData = (line: string) => {
     const trimmed = line.trim();
-    console.log("Received line:", trimmed);
+
     if (!trimmed || trimmed.startsWith("ets")) return;
 
     // Build a mapping: channel number -> resistance value.
@@ -331,12 +331,12 @@ const CalibrationPage: React.FC = () => {
         const { value, done } = await reader.read();
         if (done) break;
         if (value) {
-          console.log("Raw chunk received:", value);
+          
           bufferRef.current += value;
           const lines = bufferRef.current.split("\n");
           bufferRef.current = lines.pop() || "";
           lines.forEach(line => {
-            console.log("Processing complete line:", line);
+            
             updateSensorData(line);
           });
         }
